@@ -15,17 +15,33 @@ const createError = (message: string, statusCode = 400) => {
 // POST /set
 export const setKey = (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { key, value } = req.body;
+    const { key, value, ttl } = req.body;
+
+    // Validate inputs first
     if (!key || value === undefined) {
       throw createError("Key and value are required.", 400);
     }
 
-    cache.set(key, value);
-    res.json({ message: `Key '${key}' set successfully.`, value });
+    // Validate & convert TTL if provided
+    const ttlNum = ttl !== undefined && ttl !== null ? Number(ttl) : undefined;
+    if (ttlNum !== undefined && isNaN(ttlNum)) {
+      throw createError("TTL must be a valid number (in milliseconds).", 400);
+    }
+
+    // Set key in cache
+    cache.set(key, value, ttlNum);
+
+    // Respond
+    res.json({
+      message: `Key '${key}' set successfully.`,
+      value,
+      ttl: ttlNum ? `${ttlNum} ms` : "No TTL",
+    });
   } catch (err) {
     next(err);
   }
 };
+
 
 // GET /get/:key
 export const getKey = (req: Request, res: Response, next: NextFunction) => {
