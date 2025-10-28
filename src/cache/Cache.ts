@@ -63,7 +63,6 @@ export class Cache { // typescript class cache , export means we can import it i
         };
     }
 
-
     clear() {
         clearInterval(this.cleanUpInterval);
     }

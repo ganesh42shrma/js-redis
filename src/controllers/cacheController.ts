@@ -94,3 +94,13 @@ export const getStats = (req: Request, res: Response, next: NextFunction) => {
     next(err);
   }
 };
+
+// GET /clear
+export const clearCache = (req: Request, res: Response, next: NextFunction) => {
+  try {
+    cache.clear();
+    res.json({ message: "Cache cleared successfully." });
+  } catch (err) {
+    next(err);
+  }
+};
