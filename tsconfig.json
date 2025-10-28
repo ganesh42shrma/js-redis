@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "rootDir": "./src", //where your TS code lives
+    "outDir": "./dist", //compiled JS output folder
+    "esModuleInterop": true, //allows import express from 'express' syntax
+    "strict": true //enforces best practices and catches bugs early
+  }
+}
