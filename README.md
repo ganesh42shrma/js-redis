@@ -21,13 +21,14 @@ The purpose of this project is **educational** — to build and deeply understan
 - **TypeScript for backend applications**  
 - **Scalable code structure (MVC pattern)**
 
-Ultimately, this serves as a foundation for future phases like **Pub/Sub**, **Persistence**, **LRU eviction**, and **WebSocket-based dashboards**.
+Ultimately, this serves as a foundation for future phases like **Pub/Sub**, **LRU eviction**, and **WebSocket-based dashboards**.
 
-## 🧩 Current Features (Phase 1–3)
+## 🧩 Current Features (Phase 1–4)
 
 ✅ **Core Cache Implementation**
 - Stores key-value pairs in memory using a `Map`
 - Provides methods for `set`, `get`, `delete`, and `keys`
+- Basic LRU refresh on reads (re-inserts key to keep it recent)
 
 ✅ **REST API Endpoints**
 - `POST /set` – Set a key-value pair (with optional TTL in ms)
@@ -39,34 +40,41 @@ Ultimately, this serves as a foundation for future phases like **Pub/Sub**, **Pe
 - Keys automatically expire after the specified duration
 - Expired keys are cleaned up periodically
 
+✅ **Persistence (Phase 4)**
+- Cache can be persisted to disk as JSON (`src/cache/CachePersistence.ts`)
+- Auto-persistence runs on a configurable interval and on graceful shutdown
+- Persistence file path and interval are configurable via environment variables
+
 ✅ **Centralized Error Handling**
 - Custom `createError()` helper
 - Global `errorHandler` middleware with status codes and messages
 
-✅ **Clean MVC Architecture**
+✅ **Clean MVC / modular Architecture**
 - `controllers/` – Route logic
 - `routes/` – Express routes
-- `models/` – Cache class and data logic
+- `cache/` – Cache class and persistence logic
 - `middleware/` – Error handling
-- `app.ts` – Express app entry point
+- `server.ts` – Express app entry point
 
 ## 🧱 Project Structure
 
 ```
 mini-redis/
 ├── src/
-│   ├── app.ts
+│   ├── server.ts
 │   ├── routes/
 │   │   └── cacheRoutes.ts
 │   ├── controllers/
 │   │   └── cacheController.ts
-│   ├── models/
-│   │   └── Cache.ts
+│   ├── cache/
+│   │   ├── Cache.ts
+│   │   └── CachePersistence.ts
 │   ├── middleware/
 │   │   ├── errorHandler.ts
-│   │   └── createError.ts
-│   └── types/
-│       └── index.d.ts
+│   │   └── notFoundHandler.ts
+│   └── config/
+│       └── config.ts
+├── data/              # default location for persisted cache JSON
 ├── package.json
 ├── tsconfig.json
 └── README.md
@@ -85,18 +93,32 @@ cd mini-redis
 npm install
 ```
 
-3. Run the development server
+3. Environment variables (optional)
+- CACHE_MAX_SIZE — maximum number of keys (default: 100)
+- CLEANUP_INTERVAL_MS — TTL cleanup interval in ms (default: 60000)
+- CACHE_FILE_PATH — path to persistence file (default: data/cache.json)
+- CACHE_PERSIST_INTERVAL_MS — persist interval in ms (default: 10000)
+
+You can create a .env file or set these in your environment.
+
+4. Run the development server
 ```bash
 npm run dev
 ```
 
-4. Test using Postman or cURL
+5. Test using Postman or cURL
 
 Example:
 ```bash
 # Set a key with TTL of 5000ms
 curl -X POST http://localhost:3000/set -H "Content-Type: application/json" -d '{"key":"username","value":"Ganesh","ttl":5000}'
 ```
+
+## 🧠 Persistence details
+- On startup the cache attempts to load persisted JSON (if present) and restore entries.
+- Auto-persistence periodically writes the in-memory store to disk.
+- The server triggers a final persist on graceful shutdown (SIGINT).
+- Persistence currently saves the raw stored values (no metadata like TTL expiry timestamps are preserved beyond what the stored objects include).
 
 ## 🧠 Learning Notes
 
@@ -112,8 +134,7 @@ Throughout this project, you’ll learn:
 
 These will be built on top of the existing cache:
 
-- 🕸️ Phase 4 – Persistent storage (snapshotting to disk)
-- 🔁 Phase 5 – LRU / LFU eviction policies
+- 🔁 Phase 5 – LRU / LFU eviction policies (improved eviction)
 - 📡 Phase 6 – Pub/Sub mechanism
 - 💻 Phase 7 – WebSocket-based live dashboard
 - 🧩 Phase 8 – Distributed caching and clustering
