@@ -1,60 +1,57 @@
 import { Request, Response, NextFunction } from "express";
-import { Cache } from "../cache/Cache";
+import { cacheInstance } from "../cache/cacheInstance";
+import { createError } from "../middleware/createError";
 
-const cache = new Cache(); // Single cache instance
-
-// --- Helper to throw errors with custom status codes ---
-const createError = (message: string, statusCode = 400) => {
-  const err = new Error(message) as any;
-  err.statusCode = statusCode;
-  return err;
-};
+const cache = cacheInstance;
 
 // ---------------- Controllers ----------------
 
 // POST /set
 export const setKey = (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { key, value, ttl } = req.body;
-
-    // Validate inputs first
+    console.log("POST /set called with body:", req.body);
+    const { key, value, ttl } = req.body ?? {};
     if (!key || value === undefined) {
-      throw createError("Key and value are required.", 400);
+      console.log("POST /set validation failed: missing key or value");
+      return next(
+        createError("Missing required fields: key and value", 400)
+      );
+    }
+    if (ttl !== undefined && typeof ttl !== "number") {
+      console.log("POST /set validation failed: ttl not a number", ttl);
+      return next(
+        createError("ttl must be a number (milliseconds)", 400)
+      );
     }
 
-    // Validate & convert TTL if provided
-    const ttlNum = ttl !== undefined && ttl !== null ? Number(ttl) : undefined;
-    if (ttlNum !== undefined && isNaN(ttlNum)) {
-      throw createError("TTL must be a valid number (in milliseconds).", 400);
-    }
-
-    // Set key in cache
-    cache.set(key, value, ttlNum);
-
-    // Respond
-    res.json({
-      message: `Key '${key}' set successfully.`,
-      value,
-      ttl: ttlNum ? `${ttlNum} ms` : "No TTL",
-    });
+    cacheInstance.set(String(key), value, ttl);
+    console.log(`POST /set stored key='${key}' ttl=${ttl ?? "none"}`);
+    return res.status(200).json({ ok: true, key });
   } catch (err) {
+    console.error("POST /set error:", err);
     next(err);
   }
 };
 
-
 // GET /get/:key
 export const getKey = (req: Request, res: Response, next: NextFunction) => {
   try {
+    console.log("GET /get/:key called with params:", req.params);
     const key = req.params.key;
-    const value = cache.get(key);
-
-    if (value === null) {
-      throw createError(`Key '${key}' not found.`, 404);
+    if (!key) {
+      console.log("GET /get/:key validation failed: missing key param");
+      return next(createError("Missing key parameter", 400));
     }
 
-    res.json({ key, value });
+    const val = cacheInstance.get(key);
+    if (val === null) {
+      console.log(`GET /get/:key key='${key}' not found`);
+      return next(createError(`Key '${key}' not found`, 404));
+    }
+    console.log(`GET /get/:key key='${key}' found`);
+    return res.status(200).json({ key, value: val });
   } catch (err) {
+    console.error("GET /get/:key error:", err);
     next(err);
   }
 };
@@ -62,25 +59,35 @@ export const getKey = (req: Request, res: Response, next: NextFunction) => {
 // DELETE /delete/:key
 export const deleteKey = (req: Request, res: Response, next: NextFunction) => {
   try {
+    console.log("DELETE /delete/:key called with params:", req.params);
     const key = req.params.key;
-    const success = cache.delete(key);
-
-    if (!success) {
-      throw createError(`Key '${key}' not found.`, 404);
+    if (!key) {
+      console.log("DELETE /delete/:key validation failed: missing key param");
+      return next(createError("Missing key parameter", 400));
     }
 
-    res.json({ message: `Key '${key}' deleted successfully.` });
+    const existed = cacheInstance.delete(key);
+    if (!existed) {
+      console.log(`DELETE /delete/:key key='${key}' not found`);
+      return next(createError(`Key '${key}' not found`, 404));
+    }
+    console.log(`DELETE /delete/:key key='${key}' deleted`);
+    return res.status(200).json({ ok: true, key });
   } catch (err) {
+    console.error("DELETE /delete/:key error:", err);
     next(err);
   }
 };
 
 // GET /keys
-export const listKeys = (req: Request, res: Response, next: NextFunction) => {
+export const listKeys = (_req: Request, res: Response, next: NextFunction) => {
   try {
-    const keys = cache.keys();
-    res.json({ keys });
+    console.log("GET /keys called");
+    const keys = cacheInstance.keys();
+    console.log(`GET /keys returning ${keys.length} keys`);
+    return res.status(200).json({ keys });
   } catch (err) {
+    console.error("GET /keys error:", err);
     next(err);
   }
 };
